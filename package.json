@@ -1,0 +1,23 @@
+{
+  "name": "ghost-render",
+  "version": "0.0.0",
+  "description": "- partials support - async rendering support",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^2.3.2",
+    "downsize": "0.0.8",
+    "express-hbs": "^0.7.11",
+    "handlebars": "^2.0.0",
+    "lodash": "^2.4.1",
+    "miniq": "^0.1.2",
+    "mkdirp": "^0.5.0",
+    "moment": "^2.8.3",
+    "pipe-iterators": "^0.1.0",
+    "xtend": "^4.0.0"
+  }
+}
