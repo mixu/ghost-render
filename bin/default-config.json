@@ -1,0 +1,19 @@
+{
+  "blog": {
+    "url": "http://localhost:5000",
+    "title": "BLOG TITLE",
+    "description": "BLOG DESCRIPTION",
+    "logo": "http://lorempixel.com/45/45/abstract/",
+    "cover": "http://lorempixel.com/1100/425/nature/"
+  },
+  "authors": {
+    "default": {
+      "name": "AUTHOR NAME",
+      "bio": "AUTHOR BIO",
+      "website": "http://localhost:5000/author/foo",
+      "image": "http://lorempixel.com/155/155/people/",
+      "cover": "http://lorempixel.com/1100/425/animals/",
+      "slug": "foo"
+    }
+  }
+}

@@ -1,0 +1,132 @@
+#!/usr/bin/env node
+var fs = require('fs'),
+    path = require('path'),
+    subarg = require('subarg');
+
+var argv = subarg(process.argv.slice(2));
+
+// defaults
+
+var config = { };
+
+if (argv.init) {
+  console.log(fs.readFileSync(__dirname + '/default-config.json').toString());
+  process.exit();
+  return;
+}
+
+if (argv.help) {
+  console.log(fs.readFileSync(__dirname + '/usage.txt').toString());
+  process.exit();
+  return;
+}
+
+if (argv.settings) {
+  var settingsPath = path.resolve(process.cwd(), argv.settings);
+  var loaded = require(settingsPath);
+
+  // resolve relative to the config file location
+  ['input', 'output', 'theme'].forEach(function(key) {
+    loaded[key] = path.resolve(path.dirname(settingsPath), loaded[key]);
+  });
+
+  Object.keys(loaded).forEach(function(key) {
+    // loaded file overrides all values that were not set yet
+    if (typeof config[key] === 'undefined') {
+      config[key] = loaded[key];
+    }
+  });
+} else {
+  console.log('The --settings command line argument is required.');
+  process.exit();
+  return;
+}
+
+if (!config.input) {
+  config.input = path.resolve(process.cwd(), argv.input || './input/');
+}
+if (!config.output) {
+  config.output = path.resolve(process.cwd(), argv.output || './output/');
+}
+if (!config.theme) {
+  console.log('The --theme command line argument is required.');
+  return;
+}
+
+// process
+
+var pi = require('pipe-iterators'),
+    through = require('through2'),
+    glob = require('wildglob');
+
+var stream = require('../index.js').stream,
+    Theme = require('../index.js').Theme;
+    md = require('../index.js').md;
+
+var templatePath = config.theme,
+    assetPath = config.theme + '/assets';
+
+var meta = { blog: config.blog, authors: config.authors },
+    theme = new Theme({
+  templatePath: templatePath,
+  meta: meta
+});
+
+var pipelines = require('../index.js').pipelines(theme, config.input, config.output);
+
+glob.stream(config.input + '/**')
+    .pipe(pi.pipeFirst([
+  stream.read(),
+  md.parseHeader(),
+  md.parseMd(),
+  md.annotateMdHeadings(),
+
+  // add helper + template that uses the headings
+
+  md.highlightJs(),
+  md.convertMd(),
+
+  stream.fileToPost(meta, config.input),
+  stream.parsePublishedAt(),
+  stream.parseTags(),
+  stream.sortByPublishedAt(),
+
+  pi.fork(pipelines.page),
+
+  // no drafts, no pages past this point
+  pi.filter(function(post) { return !post.draft && !post.page; }),
+
+  pi.fork(
+    pipelines.post,
+    pipelines.index,
+    pipelines.postRSS,
+
+    pi.pipeFirst([
+      stream.groupByTag(),
+      pi.fork(
+        pipelines.tag,
+        pipelines.tagRSS
+      )
+    ]),
+    pi.pipeFirst([
+      stream.groupByAuthor(),
+      pi.fork(
+        pipelines.author,
+        pipelines.authorRSS
+      )
+    ])
+  )
+]));
+
+// copy assets
+glob.stream(assetPath + '/**' )
+  .pipe(stream.read())
+  .pipe(pi.mapKey('path', function(p) { return path.normalize(p.replace(assetPath, config.output + '/assets/')); }))
+  .pipe(pi.forEach(function(obj) { console.log('write theme asset:', obj.path); }))
+  .pipe(stream.dest());
+
+glob.stream(__dirname + '/public/assets/**' )
+  .pipe(stream.read())
+  .pipe(pi.mapKey('path', function(p) { return path.normalize(p.replace(__dirname + '/public/assets/', config.output + '/assets/')); }))
+  .pipe(pi.forEach(function(obj) { console.log('write base asset:', obj.path); }))
+  .pipe(stream.dest());
