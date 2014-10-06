@@ -87,7 +87,11 @@ glob.stream(config.input + '/**')
   // for non-markdown files: copy the file.
   through.obj(function(filename, enc, onDone) {
     var ext = path.extname(filename);
-    if (ext === '.md' || ext === '.markdown') {
+    if (ext === '.markdown' ||
+        ext === '.mdown' ||
+        ext === '.mkd' ||
+        ext === '.mkdn' ||
+        ext === '.md') {
       this.push(filename);
       return onDone();
     }
