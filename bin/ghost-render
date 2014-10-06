@@ -57,7 +57,8 @@ if (!config.theme) {
 
 var pi = require('pipe-iterators'),
     through = require('through2'),
-    glob = require('wildglob');
+    glob = require('wildglob'),
+    mkdirp = require('mkdirp');
 
 var stream = require('../index.js').stream,
     Theme = require('../index.js').Theme;
@@ -76,6 +77,31 @@ var pipelines = require('../index.js').pipelines(theme, config.input, config.out
 
 glob.stream(config.input + '/**')
     .pipe(pi.pipeFirst([
+
+  // fixme: duplicated in stream.read
+  pi.filter(function(filename) {
+    var stat = fs.statSync(filename);
+    return stat.isFile();
+  }),
+
+  // for non-markdown files: copy the file.
+  through.obj(function(filename, enc, onDone) {
+    var ext = path.extname(filename);
+    if (ext === '.md' || ext === '.markdown') {
+      this.push(filename);
+      return onDone();
+    }
+    var target = path.normalize(filename.replace(config.input, config.output));
+    mkdirp(path.dirname(target), function(err) {
+      if (err) {
+        throw err;
+      }
+      console.log('Copy non-markdown file', filename, '=>', target);
+      fs.createReadStream(filename).pipe(fs.createWriteStream(target));
+      return onDone();
+    });
+  }),
+
   stream.read(),
   md.parseHeader(),
   md.parseMd(),
