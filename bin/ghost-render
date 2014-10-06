@@ -112,6 +112,25 @@ glob.stream(config.input + '/**')
   md.highlightJs(),
   md.convertMd(),
 
+  // this would make a good example of why pipeFirst is not always what you want when you
+  // are going from doing one operation to doing two operations, since it
+  // would return the first item, which would leave a hanging pipe for the latter item
+  // ... what you'd want is to pipe into the first item but pipe out of the last item.
+  // Maybe pipe-iterators.pipe should do the right thing given
+  // .pipe([ foo, [ first, ..., last], bar)
+
+  // make sure that the path extension is adjusted to html before anything else happens
+
+  // This creates '/foo.html' style links and files
+  // pi.mapKey('path', function(p) { return path.dirname(p) + '/' + path.basename(p, path.extname(p)) + '.html'; }),
+  //
+  // TODO: document this and make it configurable.
+  //
+  // This leaves the '.html' part off from links. When the filename generation in the posts pipeline
+  // detects no extname, it will append '/index.html', resulting in '/foo/index.html' style output
+  // which will match the correct output on servers which support a index page.
+  pi.mapKey('path', function(p) { return path.dirname(p) + '/' + path.basename(p, path.extname(p)); }),
+
   stream.fileToPost(meta, config.input),
   stream.parsePublishedAt(),
   stream.parseTags(),
@@ -151,8 +170,10 @@ glob.stream(assetPath + '/**' )
   .pipe(pi.forEach(function(obj) { console.log('write theme asset:', obj.path); }))
   .pipe(stream.dest());
 
-glob.stream(__dirname + '/public/assets/**' )
+var ghostAssetPath = path.normalize(__dirname + '/../public/assets');
+
+glob.stream(ghostAssetPath + '/**' )
   .pipe(stream.read())
-  .pipe(pi.mapKey('path', function(p) { return path.normalize(p.replace(__dirname + '/public/assets/', config.output + '/assets/')); }))
+  .pipe(pi.mapKey('path', function(p) { return path.normalize(p.replace(ghostAssetPath + '/', config.output + '/assets/')); }))
   .pipe(pi.forEach(function(obj) { console.log('write base asset:', obj.path); }))
   .pipe(stream.dest());
