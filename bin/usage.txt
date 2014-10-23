@@ -1,1 +1,25 @@
-TODO
+USAGE
+
+    ghost-render --settings ./settings.json --theme ./path/to/theme
+
+REQUIRED
+
+    --settings <path>  Path to blog settings file. 
+
+    --theme <path>     Path to a Ghost theme.
+
+OPTIONAL
+
+    --init             Generate a settings file. 
+                       For example: `ghost-render --init > settings.json`
+
+    --input <path>     Path to use for generating the blog. 
+                       All files under the path are included.
+                       Defaults to `./input`
+
+    --output <path>    Path to use for writing the blog.
+                       Defaults to `./output`
+
+    --help, -h         Show this help.
+
+    --version, -v      Version info.

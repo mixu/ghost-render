@@ -15,7 +15,12 @@ if (argv.init) {
   return;
 }
 
-if (argv.help) {
+if (argv.version || argv.v) {
+  console.log(require('../package.json').version);
+  process.exit();
+}
+
+if (argv.help || argv.h) {
   console.log(fs.readFileSync(__dirname + '/usage.txt').toString());
   process.exit();
   return;
@@ -27,7 +32,9 @@ if (argv.settings) {
 
   // resolve relative to the config file location
   ['input', 'output', 'theme'].forEach(function(key) {
-    loaded[key] = path.resolve(path.dirname(settingsPath), loaded[key]);
+    if (typeof loaded[key] !== 'undefined') {
+      loaded[key] = path.resolve(path.dirname(settingsPath), loaded[key]);
+    }
   });
 
   Object.keys(loaded).forEach(function(key) {
@@ -37,6 +44,8 @@ if (argv.settings) {
     }
   });
 } else {
+  console.log(fs.readFileSync(__dirname + '/usage.txt').toString());
+  console.log();
   console.log('The --settings command line argument is required.');
   process.exit();
   return;
@@ -48,7 +57,13 @@ if (!config.input) {
 if (!config.output) {
   config.output = path.resolve(process.cwd(), argv.output || './output/');
 }
+if (!config.theme && argv.theme) {
+  config.theme = path.resolve(process.cwd(), argv.theme);
+}
+
 if (!config.theme) {
+  console.log(fs.readFileSync(__dirname + '/usage.txt').toString());
+  console.log();
   console.log('The --theme command line argument is required.');
   return;
 }
@@ -75,8 +90,27 @@ var meta = { blog: config.blog, authors: config.authors },
 
 var pipelines = require('../index.js').pipelines(theme, config.input, config.output);
 
+function copy(targetFn) {
+  var seen = {};
+  return through.obj(function(filename, enc, done) {
+    var target = targetFn(filename),
+        copyDir = path.dirname(target);
+    (seen[copyDir] ? function(a, onDone) { onDone(null); } : mkdirp)(
+      copyDir, function(err) {
+        if (err) {
+          throw err;
+        }
+        seen[copyDir] = true;
+        fs.createReadStream(filename)
+          .pipe(fs.createWriteStream(target))
+          .once('finish', done)
+          .once('error', done);
+      });
+  });
+}
+
 glob.stream(config.input + '/**')
-    .pipe(pi.pipeFirst([
+    .pipe(pi.head([
 
   // fixme: duplicated in stream.read
   pi.filter(function(filename) {
@@ -84,84 +118,70 @@ glob.stream(config.input + '/**')
     return stat.isFile();
   }),
 
-  // for non-markdown files: copy the file.
-  through.obj(function(filename, enc, onDone) {
-    var ext = path.extname(filename);
-    if (ext === '.markdown' ||
-        ext === '.mdown' ||
-        ext === '.mkd' ||
-        ext === '.mkdn' ||
-        ext === '.md') {
-      this.push(filename);
-      return onDone();
-    }
-    var target = path.normalize(filename.replace(config.input, config.output));
-    mkdirp(path.dirname(target), function(err) {
-      if (err) {
-        throw err;
+  pi.match(
+    // for non-markdown files: copy the file.
+    function(filename) {
+      var ext = path.extname(filename);
+      if (ext === '.markdown' ||
+          ext === '.mdown' ||
+          ext === '.mkd' ||
+          ext === '.mkdn' ||
+          ext === '.md') {
+        return false;
       }
+      return true;
+    },
+    copy(function(filename) {
+      var target = path.normalize(filename.replace(config.input, config.output));
       console.log('Copy non-markdown file', filename, '=>', target);
-      fs.createReadStream(filename).pipe(fs.createWriteStream(target));
-      return onDone();
-    });
-  }),
+      return target;
+    }),
+    // rest:
+    pi.head([
+      stream.read(),
+      md.parseHeader(),
+      md.parseMd(),
+      md.annotateMdHeadings(),
 
-  stream.read(),
-  md.parseHeader(),
-  md.parseMd(),
-  md.annotateMdHeadings(),
+      // add helper + template that uses the headings
 
-  // add helper + template that uses the headings
+      md.highlightJs(),
+      md.convertMd(),
 
-  md.highlightJs(),
-  md.convertMd(),
+      stream.fileToPost(meta),
 
-  // this would make a good example of why pipeFirst is not always what you want when you
-  // are going from doing one operation to doing two operations, since it
-  // would return the first item, which would leave a hanging pipe for the latter item
-  // ... what you'd want is to pipe into the first item but pipe out of the last item.
-  // Maybe pipe-iterators.pipe should do the right thing given
-  // .pipe([ foo, [ first, ..., last], bar)
+      // generate the URL for the post.
+      // This determines:
+      // - the link URLs
+      // - the path on disk (outDir + relativeUrl)
+      //
+      // To prevent conficts between ghost's own "permalink" logic and
+      // the real directory structure on disk, this is the only place where
+      // urls are generated for real for posts and pages.
+      //
+      // As for author pages, tag pages, the blog index pages and rss XML pages,
+      // these have a fixed, non-configurable URL scheme (in Ghost and here).
+      stream.computeUrl(config.input),
 
-  // make sure that the path extension is adjusted to html before anything else happens
+      stream.parsePublishedAt(),
+      stream.parseTags(),
+      stream.sortByPublishedAt(),
 
-  // This creates '/foo.html' style links and files
-  // pi.mapKey('path', function(p) { return path.dirname(p) + '/' + path.basename(p, path.extname(p)) + '.html'; }),
-  //
-  // TODO: document this and make it configurable.
-  //
-  // This leaves the '.html' part off from links. When the filename generation in the posts pipeline
-  // detects no extname, it will append '/index.html', resulting in '/foo/index.html' style output
-  // which will match the correct output on servers which support a index page.
-  pi.mapKey('path', function(p) { return path.dirname(p) + '/' + path.basename(p, path.extname(p)); }),
+      pi.match(
+        // pages pipeline: only pages
+        function(post) { return post.page; }, pipelines.page,
+        pi.head([
+          // no drafts, no pages past this point
+          pi.filter(function(post) { return !post.draft && !post.page; }),
 
-  stream.fileToPost(meta, config.input),
-  stream.parsePublishedAt(),
-  stream.parseTags(),
-  stream.sortByPublishedAt(),
-
-  pi.fork(pipelines.page),
-
-  // no drafts, no pages past this point
-  pi.filter(function(post) { return !post.draft && !post.page; }),
-
-  pi.fork(
-    pipelines.post,
-    pipelines.index,
-    pipelines.postRSS,
-
-    pi.pipeFirst([
-      stream.groupByTag(),
-      pi.fork(
-        pipelines.tag,
-        pipelines.tagRSS
-      )
-    ]),
-    pi.pipeFirst([
-      stream.groupByAuthor(),
-      pi.fork(
-        pipelines.author,
-        pipelines.authorRSS
+          pi.fork(
+            pipelines.post,
+            pipelines.index,
+            pipelines.postRSS,
+            pipelines.tags,
+            pipelines.authors
+          )
+        ])
       )
     ])
   )
@@ -169,15 +189,25 @@ glob.stream(config.input + '/**')
 
 // copy assets
 glob.stream(assetPath + '/**' )
-  .pipe(stream.read())
-  .pipe(pi.mapKey('path', function(p) { return path.normalize(p.replace(assetPath, config.output + '/assets/')); }))
-  .pipe(pi.forEach(function(obj) { console.log('write theme asset:', obj.path); }))
-  .pipe(stream.dest());
+  .pipe(pi.filter(function(filename) {
+    var stat = fs.statSync(filename);
+    return stat.isFile();
+  }))
+  .pipe(copy(function(filename) {
+    var target = path.normalize(filename.replace(assetPath, config.output + '/assets/'));
+    console.log('Copy theme asset:', filename, '=>', target);
+    return target;
+  }));
 
 var ghostAssetPath = path.normalize(__dirname + '/../public/assets');
 
 glob.stream(ghostAssetPath + '/**' )
-  .pipe(stream.read())
-  .pipe(pi.mapKey('path', function(p) { return path.normalize(p.replace(ghostAssetPath + '/', config.output + '/assets/')); }))
-  .pipe(pi.forEach(function(obj) { console.log('write base asset:', obj.path); }))
-  .pipe(stream.dest());
+  .pipe(pi.filter(function(filename) {
+    var stat = fs.statSync(filename);
+    return stat.isFile();
+  }))
+  .pipe(copy(function(filename) {
+    var target = path.normalize(filename.replace(ghostAssetPath + '/', config.output + '/assets/'));
+    console.log('Copy base asset:', filename, '=>', target);
+    return target;
+  }));

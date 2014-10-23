@@ -1,17 +1,40 @@
 {
   "name": "ghost-render",
   "version": "0.0.0",
-  "description": "- partials support - async rendering support",
+  "description": "Renders static blog sites from Markdown using Ghost themes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mixu/ghost-render.git"
+  },
+  "bin": {
+    "ghost-render": "./bin/ghost-render"
+  },
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha -R spec ./test/*.test.js"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Mikito Takada <mikito.takada@gmail.com> (http://mixu.net/)",
+  "license": "BSD",
+  "keywords": [
+    "website",
+    "blog",
+    "static",
+    "site",
+    "website",
+    "generator",
+    "markdown",
+    "static site generator"
+  ],
+  "bugs": {
+    "url": "https://github.com/mixu/ghost-render/issues"
+  },
+  "homepage": "https://github.com/mixu/ghost-render",
   "dependencies": {
     "bluebird": "^2.3.2",
+    "clone": "^0.1.18",
     "downsize": "0.0.8",
     "express-hbs": "^0.7.11",
+    "file-fixture": "0.0.2",
     "handlebars": "^2.0.0",
     "highlight.js": "^8.2.0",
     "lodash": "^2.4.1",
@@ -19,7 +42,7 @@
     "miniq": "^0.1.2",
     "mkdirp": "^0.5.0",
     "moment": "^2.8.3",
-    "pipe-iterators": "^0.1.0",
+    "pipe-iterators": "^1.0.0",
     "readable-stream": "^1.0.32",
     "rss": "^0.2.1",
     "subarg": "^1.0.0",
