@@ -65,13 +65,14 @@ All done; here's a screenshot of the result:
 
 Each blog post can have metadata associated with it. To set the metadata, start your markdown file with a metadata block that looks like this:
 
-
-      ---
-      title: Page title
-      published_at: 2014-01-30 11:26:04
-      author: foo
-      tags: foo bar
-      ---
+```
+---
+title: Page title
+published_at: 2014-01-30 11:26:04
+author: foo
+tags: foo bar
+---
+```
 
 All of the post metadata is optional - see below for the fallback values.
 
