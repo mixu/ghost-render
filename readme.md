@@ -17,6 +17,10 @@ Renders static blog sites from Markdown using [Ghost themes](http://marketplace.
 - Supports multiple authors
 - Supports syntax highlighting via highlight.js
 
+## Changelog
+
+`v.1.1.0`: added a missing dependency to package.json
+
 ## Getting started
 
 Install `ghost-render`: 
