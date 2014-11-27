@@ -1,6 +1,6 @@
 {
   "name": "ghost-render",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Renders static blog sites from Markdown using Ghost themes",
   "repository": {
     "type": "git",
