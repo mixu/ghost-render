@@ -65,6 +65,12 @@ All done; here's a screenshot of the result:
 
 ![screenshot](./screenshot.png)
 
+## The resulting output
+
+The output HTML is fully static. This means that you could, for example, point a HTTP server at the output folder and be done with it or push the output folder to Amazon S3.
+
+For example, here is how I deploy my own blog: `aws s3 sync ./output/ s3://some-s3-bucket/some-folder/ --delete --exclude "node_modules/*"  --exclude ".git"` (assuming credentials are in the necessary environment variables and that the AWS CLI is installed).
+
 ## Adding metadata to each post
 
 Each blog post can have metadata associated with it. To set the metadata, start your markdown file with a metadata block that looks like this:
