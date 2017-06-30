@@ -1,3 +1,6 @@
 node_modules/
 tmp/
 settings.json
+
+casper/
+blog/
