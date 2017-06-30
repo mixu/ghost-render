@@ -4,6 +4,10 @@ build:
 	rm -rf ./tmp/
 	node ./bin/ghost-render --settings settings.json
 
+build-casper:
+	rm -rf ./tmp/
+	node ./bin/ghost-render --input ./blog/ --settings settings.json --theme ./casper --output ./tmp
+
 lint:
 	fixjsstyle $(GJSLINT) -r .
 	gjslint $(GJSLINT) -r .
