@@ -32,6 +32,7 @@
   "dependencies": {
     "bluebird": "^2.3.2",
     "clone": "^0.1.18",
+    "colors": "^1.1.2",
     "downsize": "0.0.8",
     "express-hbs": "^0.7.11",
     "file-fixture": "0.0.2",
